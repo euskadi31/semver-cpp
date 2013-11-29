@@ -1,0 +1,11 @@
+#!/bin/bash
+
+wget -O boost_1_54_0.tar.gz http://sourceforge.net/projects/boost/files/boost/1.54.0/boost_1_54_0.tar.gz/download
+tar -xzf boost_1_54_0.tar.gz
+cd boost_1_54_0/
+./bootstrap.sh --prefix=/usr/local
+#user_configFile=$(find $PWD -name user-config.jam)
+#echo "using mpi ;" >> $user_configFile
+n=$(cat /proc/cpuinfo | grep "cpu cores" | uniq | awk '{print $NF}')
+./b2 -d0 --with=all -j $n install
+ldconfig

@@ -7,7 +7,7 @@ install:
 	@scons install
 
 test: scons
-	@./build/semvar-test --log_level=error --detect_memory_leaks=1 --report_level=detailed --report_format=xml 2> ./build/xunit.xml
+	@./build/semvar-test --log_level=error --detect_memory_leaks=1 --report_level=detailed
 
 clean:
 	@scons -c

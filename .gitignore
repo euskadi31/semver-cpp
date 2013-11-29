@@ -1,0 +1,13 @@
+.DS_Store
+.sconsign.dblite
+xunit.xml
+swift-test
+*.os
+*.dylib
+*.o
+*.la
+*.hpp_
+*.cpp_
+.vagrant
+Vagrantfile
+build

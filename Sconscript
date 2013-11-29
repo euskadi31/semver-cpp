@@ -33,5 +33,4 @@ env.Command(
 
 env.Install(dir = [ path.join("build", "include", "semver") ], source = [ path.join("include", "semver", "version.hpp") ])
 env.Alias("install", [ path.join(install_dir) ])
-
 env.Program(target = path.join("build", "semvar-test"), source = testfiles)

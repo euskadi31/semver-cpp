@@ -8,8 +8,10 @@
  * file that was distributed with this source code.
  */
 
-#include <string>
+#include <cstdlib>
+#include <iostream>
 #include <sstream>
+#include <string>
 
 namespace semver {
 
@@ -30,15 +32,18 @@ namespace semver {
         int m_minor;
         int m_patch;
         pre_release_t m_pre_release_type;
+        std::string m_pre_release_id;
         std::string m_pre_release;
         std::string m_build;
         bool m_is_valid;
+        bool m_is_stable;
 
         enum m_type {
             TYPE_MAJOR,
             TYPE_MINOR,
             TYPE_PATCH,
             TYPE_PRE_RELEASE,
+            TYPE_PRE_RELEASE_ID,
             TYPE_BUILD
         };
 
@@ -114,8 +119,37 @@ namespace semver {
                         break;
 
                     case TYPE_PRE_RELEASE:
-                        
-                        if (chr == '+' || chr == '.')
+
+                        if (chr == '.')
+                        {
+                            type = TYPE_PRE_RELEASE_ID;
+                            m_pre_release += chr;
+                            continue;
+                        }
+
+                        if (chr == '+')
+                        {
+                            type = TYPE_BUILD;
+                            continue;
+                        }
+
+                        if (
+                            (chr_dec < 48 || chr_dec > 57) && // 0-9
+                            (chr_dec < 65 || chr_dec > 90) && // A-Z
+                            (chr_dec < 97 || chr_dec > 122) && // a-z
+                            (chr_dec != 45) && // -
+                            (chr_dec != 46) // .
+                        )
+                        {
+                            m_is_valid = false;
+                        }
+
+                        m_pre_release += chr;
+                        break;
+
+                    case TYPE_PRE_RELEASE_ID:
+
+                        if (chr == '+')
                         {
                             type = TYPE_BUILD;
                             continue;
@@ -132,6 +166,7 @@ namespace semver {
                         }
 
                         m_pre_release += chr;
+                        m_pre_release_id += chr;
                         break;
 
                     case TYPE_BUILD:
@@ -161,35 +196,55 @@ namespace semver {
                 {
                     m_pre_release_type = PRE_RELEASE_NONE;
                 }
-                else if (m_pre_release.compare("alpha") == 0)
+                else if (m_pre_release.find("alpha") != std::string::npos)
                 {
                     m_pre_release_type = PRE_RELEASE_ALPHA;
                 } 
-                else if (m_pre_release.compare("beta") == 0)
+                else if (m_pre_release.find("beta") != std::string::npos)
                 {
                     m_pre_release_type = PRE_RELEASE_BETA;
                 }
-                else if (m_pre_release.compare("rc") == 0)
+                else if (m_pre_release.find("rc") != std::string::npos)
                 {
                     m_pre_release_type = PRE_RELEASE_RC;
                 }
-            }
 
-            if (m_major == 0 && m_minor == 0 && m_patch == 0)
-            {
-                m_is_valid = false;
+                if (m_major == 0 && m_minor == 0 && m_patch == 0)
+                {
+                    m_is_valid = false;
+                }
+
+                if (!m_pre_release_id.empty() && m_pre_release_id[0] == '0')
+                {
+                    m_is_valid = false;
+                }
+
+                if (m_major == 0)
+                {
+                    m_is_stable = false;
+                }
+
+                if (m_pre_release_type != PRE_RELEASE_NONE)
+                {
+                    m_is_stable = false;
+                }
             }
         }
 
     public:
+        /**
+         * Parse the version string
+         */
         version(const std::string& version)
         {
-            m_version = version;
-            m_major = 0;
-            m_minor = 0;
-            m_patch = 0;
-            m_build = "";
-            m_pre_release = "";
+            m_version           = version;
+            m_major             = 0;
+            m_minor             = 0;
+            m_patch             = 0;
+            m_build             = "";
+            m_pre_release       = "";
+            m_pre_release_id    = "";
+            m_is_stable         = true;
 
             if (version.empty())
             {
@@ -204,46 +259,87 @@ namespace semver {
         }
 
         ~version() {}
-    
-        std::string getVersion()
+
+        /**
+         * Get full version
+         */
+        const std::string& getVersion() const
         {
             return m_version;
         }
 
-        int getMajor()
+        /**
+         * Get the major of the version
+         */
+        const int& getMajor() const
         {
             return m_major;
         }
 
-        int getMinor()
+        /**
+         * Get the minor of the version
+         */
+        const int& getMinor() const
         {
             return m_minor;
         }
 
-        int getPatch()
+        /**
+         * Get the patch of the version
+         */
+        const int& getPatch() const
         {
             return m_patch;
         }
 
-        std::string getBuild()
+        /**
+         * Get the build of the version
+         */
+        const std::string& getBuild() const
         {
             return m_build;
         }
 
-        pre_release_t getPreReleaseType()
+        /**
+         * Get the release type of the version
+         */
+        const pre_release_t& getPreReleaseType() const
         {
             return m_pre_release_type;
         }
 
-        std::string getPreRelease()
+        /**
+         * Get the release identifier of the version
+         */
+        const std::string& getPreReleaseId() const
+        {
+            return m_pre_release_id;
+        }
+
+        /**
+         * Get the release of the version
+         */
+        const std::string& getPreRelease() const
         {
             return m_pre_release;
         }
 
-        bool isValid()
+        /**
+         * Check if the version is stable
+         */
+        const bool& isStable() const
+        {
+            return m_is_stable;
+        }
+
+        /**
+         * Check if the version is valid
+         */
+        const bool& isValid() const
         {
             return m_is_valid;
         }
+
 
         int compare(version& rgt)
         {
@@ -261,140 +357,159 @@ namespace semver {
             return -1;
         }
 
-        friend bool operator== (version &lft, version &rgt);
-        friend bool operator!= (version &lft, version &rgt);
-        friend bool operator> (version &lft, version &rgt);
-        friend bool operator>= (version &lft, version &rgt);
-        friend bool operator< (version &lft, version &rgt);
-        friend bool operator<= (version &lft, version &rgt);
+        version& operator= (version& rgt)
+        {
+            if ((*this) != rgt)
+            {
+                this->m_version             = rgt.getVersion();
+                this->m_major               = rgt.getMajor();
+                this->m_minor               = rgt.getMinor();
+                this->m_patch               = rgt.getPatch();
+                this->m_pre_release_type    = rgt.getPreReleaseType();
+                this->m_pre_release_id      = rgt.getPreReleaseId();
+                this->m_pre_release         = rgt.getPreRelease();
+                this->m_build               = rgt.getBuild();
+                this->m_is_valid            = rgt.isValid();
+                this->m_is_stable           = rgt.isStable();
+            }
+
+            return *this;
+        }
+
+        friend bool operator== (version &lft, version &rgt)
+        {
+            return lft.getVersion().compare(rgt.getVersion()) == 0;
+        }
+
+        friend bool operator!= (version &lft, version &rgt)
+        {
+            return !(lft == rgt);
+        }
+
+        friend bool operator> (version &lft, version &rgt)
+        {
+            // Major
+            if (lft.getMajor() < 0 && rgt.getMajor() >= 0)
+            {
+                return false;
+            }
+
+            if (lft.getMajor() >= 0 && rgt.getMajor() < 0)
+            {
+                return true;
+            }
+
+            if (lft.getMajor() > rgt.getMajor())
+            {
+                return true;
+            }
+
+            if (lft.getMajor() < rgt.getMajor())
+            {
+                return false;
+            }
+
+
+            // Minor
+            if (lft.getMinor() < 0 && rgt.getMinor() >= 0)
+            {
+                return false;
+            }
+
+            if (lft.getMinor() >= 0 && rgt.getMinor() < 0)
+            {
+                return true;
+            }
+
+            if (lft.getMinor() > rgt.getMinor())
+            {
+                return true;
+            }
+
+            if (lft.getMinor() < rgt.getMinor())
+            {
+                return false;
+            }
+
+
+            // Patch
+            if (lft.getPatch() < 0 && rgt.getPatch() >= 0)
+            {
+                return false;
+            }
+
+            if (lft.getPatch() >= 0 && rgt.getPatch() < 0)
+            {
+                return true;
+            }
+
+            if (lft.getPatch() > rgt.getPatch())
+            {
+                return true;
+            }
+
+            if (lft.getPatch() < rgt.getPatch())
+            {
+                return false;
+            }
+            
+            // Pre release
+            if (
+                (lft.getPreReleaseType() == rgt.getPreReleaseType()) && 
+                (lft.getPreReleaseId() == rgt.getPreReleaseId())
+            )
+            {
+                return false;
+            }
+
+            if (
+                (lft.getPreReleaseId().find_first_not_of("0123456789") == std::string::npos) &&
+                (rgt.getPreReleaseId().find_first_not_of("0123456789") == std::string::npos)
+            )
+            {
+                if (atoi(lft.getPreReleaseId().c_str()) > atoi(rgt.getPreReleaseId().c_str()))
+                {
+                    return true;
+                }
+            }
+
+            if (
+                (lft.getPreReleaseType() == rgt.getPreReleaseType()) && 
+                (lft.getPreReleaseId().compare(rgt.getPreReleaseId()) > 0)
+            )
+            {
+                return true;
+            }
+
+            if (lft.getPreReleaseType() > rgt.getPreReleaseType())
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        friend bool operator>= (version &lft, version &rgt)
+        {
+            return (lft > rgt) || (lft == rgt);
+        }
+
+        friend bool operator< (version &lft, version &rgt)
+        {
+            return (rgt > lft);
+        }
+
+        friend bool operator<= (version &lft, version &rgt)
+        {
+            return (lft < rgt) || (lft == rgt);
+        }
+
+        friend std::ostream& operator<< (std::ostream& out, const version& value)
+        {
+            out << value.getVersion();
+
+            return out;
+        }
     };
-
-    bool operator== (version& lft, version& rgt)
-    {
-        return lft.getVersion().compare(rgt.getVersion()) == 0;
-    }
-
-    bool operator!= (version& lft, version& rgt)
-    {
-        return !(lft == rgt);
-    }
-
-    bool operator> (version& lft, version& rgt)
-    {
-        // Major
-        if (lft.getMajor() < 0 && rgt.getMajor() >= 0)
-        {
-            return false;
-        }
-
-        if (lft.getMajor() >= 0 && rgt.getMajor() < 0)
-        {
-            return true;
-        }
-
-        if (lft.getMajor() > rgt.getMajor())
-        {
-            return true;
-        }
-
-        if (lft.getMajor() < rgt.getMajor())
-        {
-            return false;
-        }
-
-
-        // Minor
-        if (lft.getMinor() < 0 && rgt.getMinor() >= 0)
-        {
-            return false;
-        }
-
-        if (lft.getMinor() >= 0 && rgt.getMinor() < 0)
-        {
-            return true;
-        }
-
-        if (lft.getMinor() > rgt.getMinor())
-        {
-            return true;
-        }
-
-        if (lft.getMinor() < rgt.getMinor())
-        {
-            return false;
-        }
-
-
-        // Patch
-        if (lft.getPatch() < 0 && rgt.getPatch() >= 0)
-        {
-            return false;
-        }
-
-        if (lft.getPatch() >= 0 && rgt.getPatch() < 0)
-        {
-            return true;
-        }
-
-        if (lft.getPatch() > rgt.getPatch())
-        {
-            return true;
-        }
-
-        if (lft.getPatch() < rgt.getPatch())
-        {
-            return false;
-        }
-
-        /**
-         * 1.0.0-alpha < 1.0.0-alpha.1 < 1.0.0-alpha.beta < 1.0.0-beta < 1.0.0-beta.2 < 1.0.0-beta.11 < 1.0.0-rc.1 < 1.0.0.
-         */
-        
-        // Pre release
-        if (lft.getPreReleaseType() == rgt.getPreReleaseType())
-        {
-            return false;
-        }
-
-        if (lft.getPreReleaseType() > rgt.getPreReleaseType())
-        {
-            return true;
-        }
-
-        
-        /*if (lft.getPreRelease().compare(rgt.getPreRelease()) == 0)
-        {
-            return false;
-        }
-
-        if (lft.getPreRelease().empty() && !rgt.getPreRelease().empty())
-        {
-            return true;
-        }
-
-        if (!lft.getPreRelease().empty() && rgt.getPreRelease().empty())
-        {
-            return false;
-        }*/
-
-        //@TODO implement and build
-
-        return false;
-    }
-
-    bool operator>= (version& lft, version& rgt)
-    {
-        return (lft > rgt) || (lft == rgt);
-    }
-
-    bool operator< (version& lft, version& rgt)
-    {
-        return (rgt > lft);
-    }
-
-    bool operator<= (version& lft, version& rgt)
-    {
-        return (lft < rgt) || (lft == rgt);
-    }
 
 } // end semver namespace

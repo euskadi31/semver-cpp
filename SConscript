@@ -19,7 +19,7 @@ testfiles   = getSuffixedFiles("test", "*.cpp")
 incfiles    = getSuffixedFiles("include", "*.hpp")
 
 env.Append(CPPPATH=["include", "/opt/local/include"])
-env.Append(LIBS=["boost_unit_test_framework"])
+#env.Append(LIBS=["boost_unit_test_framework-mt"])
 env.Append(LIBPATH=["/usr/local/lib", "/opt/local/lib"])
 
 env.Command(
